@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-    <title>Buzzer</title>
+    <title>Buzzer Pro</title>
     <link rel="icon" type="image/png" href="idle.png">
     <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;800&display=swap" rel="stylesheet">
     
@@ -12,7 +12,7 @@
         :root {
             --primary-red: #ff0000;
             --dark-red: #b30000;
-            --glass: rgba(255, 255, 255, 0.85);
+            --glass: rgba(255, 255, 255, 0.88);
         }
 
         body {
@@ -29,7 +29,7 @@
 
         header {
             width: 100%;
-            padding: 50px 0 10px;
+            padding: 40px 0 10px;
             display: flex;
             justify-content: center;
             z-index: 10;
@@ -63,30 +63,33 @@
             user-select: none;
             -webkit-user-drag: none;
             touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.05s ease;
         }
+
+        #pngButton:active { transform: scale(0.95); }
 
         .controls-overlay {
             position: absolute;
             bottom: 25px;
             display: flex;
-            gap: 20px;
-            padding: 15px 30px;
+            gap: 15px;
+            padding: 15px 25px;
             background: var(--glass);
-            backdrop-filter: blur(15px);
-            border-radius: 50px;
-            border: 1px solid rgba(0,0,0,0.08);
-            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            backdrop-filter: blur(20px);
+            border-radius: 40px;
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.12);
             z-index: 20;
             max-width: 95vw;
+            overflow-x: auto;
         }
 
         .control-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 6px;
-            min-width: 70px;
+            gap: 4px;
+            min-width: 80px;
         }
 
         label {
@@ -94,7 +97,7 @@
             font-weight: 800;
             color: #999;
             text-transform: uppercase;
-            letter-spacing: 1.2px;
+            letter-spacing: 1px;
         }
 
         input[type=range] {
@@ -118,13 +121,13 @@
         @keyframes shine { to { background-position: 200% center; } }
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
+            50% { transform: translateY(-10px); }
         }
 
         @media (max-width: 900px) {
-            .flowing-title { font-size: 2.2rem; letter-spacing: 5px; }
-            #pngButton { width: 200px; }
-            .controls-overlay { border-radius: 25px; gap: 8px; padding: 12px; flex-wrap: wrap; justify-content: center; width: 90%; }
+            .flowing-title { font-size: 2.5rem; letter-spacing: 4px; }
+            #pngButton { width: 220px; }
+            .controls-overlay { border-radius: 20px; width: 90%; flex-wrap: wrap; justify-content: center; }
         }
     </style>
 </head>
@@ -150,6 +153,15 @@
 
     <div class="controls-overlay">
         <div class="control-item">
+            <label>Preset</label>
+            <select id="preset">
+                <option value="custom">Custom</option>
+                <option value="amber">Amber Alert</option>
+                <option value="train">Train Horn</option>
+                <option value="ufo">UFO Beam</option>
+            </select>
+        </div>
+        <div class="control-item">
             <label>Wave</label>
             <select id="waveType">
                 <option value="square" selected>Buzz</option>
@@ -158,26 +170,11 @@
                 <option value="triangle">Soft</option>
             </select>
         </div>
-        <div class="control-item">
-            <label>Pitch</label>
-            <input type="range" id="pitch" min="60" max="1000" value="400">
-        </div>
-        <div class="control-item">
-            <label>Bass</label>
-            <input type="range" id="bass" min="100" max="10000" value="10000">
-        </div>
-        <div class="control-item">
-            <label>Chorus</label>
-            <input type="range" id="chorus" min="0" max="50" value="0">
-        </div>
-        <div class="control-item">
-            <label>Reverb</label>
-            <input type="range" id="reverb" min="0" max="1" step="0.1" value="0">
-        </div>
-        <div class="control-item">
-            <label>Volume</label>
-            <input type="range" id="volume" min="0" max="1" step="0.05" value="0.2">
-        </div>
+        <div class="control-item"><label>Pitch</label><input type="range" id="pitch" min="60" max="1200" value="400"></div>
+        <div class="control-item"><label>Bass</label><input type="range" id="bass" min="100" max="15000" value="15000"></div>
+        <div class="control-item"><label>Chorus</label><input type="range" id="chorus" min="0" max="300" value="0"></div>
+        <div class="control-item"><label>Reverb</label><input type="range" id="reverb" min="0" max="1" step="0.1" value="0"></div>
+        <div class="control-item"><label>Volume</label><input type="range" id="volume" min="0" max="1" step="0.05" value="0.2"></div>
     </div>
 
     <script>
@@ -188,26 +185,44 @@
         const revS = document.getElementById('reverb');
         const volS = document.getElementById('volume');
         const waveS = document.getElementById('waveType');
+        const presetS = document.getElementById('preset');
 
         let audioCtx, masterGain, dryGain, wetGain, reverbNode, filter;
-        let osc1, osc2;
+        let activeOscillators = [];
         let isPressed = false;
+
+        const presets = {
+            amber: { wave: 'square', pitch: 853, bass: 15000, chorus: 107, reverb: 0 },
+            train: { wave: 'sawtooth', pitch: 311, bass: 12000, chorus: 40, reverb: 0.3 },
+            ufo: { wave: 'sine', pitch: 150, bass: 5000, chorus: 250, reverb: 0.8 }
+        };
+
+        presetS.onchange = () => {
+            const p = presets[presetS.value];
+            if (p) {
+                waveS.value = p.wave;
+                pitchS.value = p.pitch;
+                bassS.value = p.bass;
+                chorS.value = p.chorus;
+                revS.value = p.reverb;
+                if (isPressed) { stopBuzz(); startBuzz(); }
+            }
+        };
 
         function initAudio() {
             if (audioCtx) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
             masterGain = audioCtx.createGain();
             dryGain = audioCtx.createGain();
             wetGain = audioCtx.createGain();
             reverbNode = audioCtx.createConvolver();
             filter = audioCtx.createBiquadFilter();
 
-            const len = audioCtx.sampleRate * 1.5;
+            const len = audioCtx.sampleRate * 2;
             const buf = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
             for (let i = 0; i < 2; i++) {
                 const chan = buf.getChannelData(i);
-                for (let j = 0; j < len; j++) chan[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 2);
+                for (let j = 0; j < len; j++) chan[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 2.5);
             }
             reverbNode.buffer = buf;
 
@@ -217,41 +232,44 @@
             dryGain.connect(masterGain);
             wetGain.connect(masterGain);
             masterGain.connect(audioCtx.destination);
-
             masterGain.gain.value = 0;
-            filter.type = "lowpass";
+        }
+
+        function createOsc(freq, type) {
+            const osc = audioCtx.createOscillator();
+            osc.type = type;
+            osc.frequency.value = freq;
+            osc.connect(filter);
+            osc.start();
+            activeOscillators.push(osc);
         }
 
         function startBuzz(e) {
             if (e) e.preventDefault();
             initAudio();
-            
-            // Re-resume context just in case browser suspended it
             if (audioCtx.state === 'suspended') audioCtx.resume();
-            
             if (isPressed) return;
             isPressed = true;
             imgBtn.src = "pressed.png";
 
-            osc1 = audioCtx.createOscillator();
-            osc2 = audioCtx.createOscillator();
+            const baseFreq = parseFloat(pitchS.value);
+            const chorVal = parseFloat(chorS.value);
+            const type = waveS.value;
 
-            osc1.type = osc2.type = waveS.value;
-            osc1.frequency.value = parseFloat(pitchS.value);
-            osc2.frequency.value = parseFloat(pitchS.value) + parseFloat(chorS.value);
-
+            filter.type = "lowpass";
             filter.frequency.value = parseFloat(bassS.value);
-            dryGain.gain.value = 1.0;
             wetGain.gain.value = parseFloat(revS.value);
+            dryGain.gain.value = 1.0;
 
-            osc1.connect(filter);
-            osc2.connect(filter);
-
-            osc1.start(0);
-            osc2.start(0);
+            if (presetS.value === 'train') {
+                // K5LA Train Horn Chords (D#, F#, G#, B, D#)
+                [1, 1.25, 1.5, 1.8, 2.0].forEach(mult => createOsc(baseFreq * mult, type));
+            } else {
+                createOsc(baseFreq, type);
+                createOsc(baseFreq + chorVal, type);
+            }
 
             masterGain.gain.setTargetAtTime(parseFloat(volS.value), audioCtx.currentTime, 0.02);
-
             if ("vibrate" in navigator) navigator.vibrate([1000, 50, 1000]);
         }
 
@@ -259,34 +277,28 @@
             if (!isPressed) return;
             isPressed = false;
             imgBtn.src = "idle.png";
-
             if (masterGain) {
                 masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
-                
-                // Keep references to stop them properly after fade
-                const activeOsc1 = osc1;
-                const activeOsc2 = osc2;
-                
+                const toStop = [...activeOscillators];
+                activeOscillators = [];
                 setTimeout(() => {
-                    if (activeOsc1) { activeOsc1.stop(); activeOsc1.disconnect(); }
-                    if (activeOsc2) { activeOsc2.stop(); activeOsc2.disconnect(); }
+                    toStop.forEach(o => { o.stop(); o.disconnect(); });
                 }, 100);
             }
             if ("vibrate" in navigator) navigator.vibrate(0);
         }
 
-        // Live Slider updates
-        pitchS.oninput = () => {
-            const freq = parseFloat(pitchS.value);
-            if(osc1) osc1.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.03);
-            if(osc2) osc2.frequency.setTargetAtTime(freq + parseFloat(chorS.value), audioCtx.currentTime, 0.03);
-        };
-        chorS.oninput = () => {
-            if(osc2) osc2.frequency.setTargetAtTime(parseFloat(pitchS.value) + parseFloat(chorS.value), audioCtx.currentTime, 0.03);
-        };
-        bassS.oninput = () => { if(filter) filter.frequency.setTargetAtTime(parseFloat(bassS.value), audioCtx.currentTime, 0.03); };
-        revS.oninput = () => { if(wetGain) wetGain.gain.setTargetAtTime(parseFloat(revS.value), audioCtx.currentTime, 0.03); };
-        volS.oninput = () => { if(masterGain && isPressed) masterGain.gain.setTargetAtTime(parseFloat(volS.value), audioCtx.currentTime, 0.03); };
+        [pitchS, bassS, chorS, revS, volS].forEach(s => s.oninput = () => {
+            if (!isPressed) return;
+            const f = parseFloat(pitchS.value);
+            filter.frequency.setTargetAtTime(parseFloat(bassS.value), audioCtx.currentTime, 0.03);
+            wetGain.gain.setTargetAtTime(parseFloat(revS.value), audioCtx.currentTime, 0.03);
+            masterGain.gain.setTargetAtTime(parseFloat(volS.value), audioCtx.currentTime, 0.03);
+            if (presetS.value !== 'train' && activeOscillators.length >= 2) {
+                activeOscillators[0].frequency.setTargetAtTime(f, audioCtx.currentTime, 0.03);
+                activeOscillators[1].frequency.setTargetAtTime(f + parseFloat(chorS.value), audioCtx.currentTime, 0.03);
+            }
+        });
 
         imgBtn.addEventListener('mousedown', startBuzz);
         window.addEventListener('mouseup', stopBuzz);
