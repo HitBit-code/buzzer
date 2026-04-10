@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-    <title>Button | Synth Edition</title>
+    <title>Buzzer | High Pitch Edition</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@800&display=swap" rel="stylesheet">
     
@@ -27,17 +27,29 @@
             justify-content: center;
         }
 
+        /* The Rippling Title */
         .flowing-title {
             font-size: 5rem;
             text-transform: uppercase;
             letter-spacing: 8px;
             margin: 0;
+            
+            /* Apply the water ripple filter */
             filter: url(#water-ripple);
-            background: linear-gradient(to right, #b30000 20%, #ff0000 40%, #8b0000 60%, #b30000 80%);
+            
+            /* Deep red flowing gradient - guaranteed no pink */
+            background: linear-gradient(
+                to right, 
+                #b30000 20%, 
+                #ff0000 40%, 
+                #8b0000 60%, 
+                #b30000 80%
+            );
             background-size: 200% auto;
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
+            
             animation: shine 4s linear infinite, float 6s ease-in-out infinite;
         }
 
@@ -48,6 +60,7 @@
             align-items: center;
         }
 
+        /* PNG Button Styling */
         #pngButton {
             width: 280px;
             cursor: pointer;
@@ -57,12 +70,15 @@
             -webkit-tap-highlight-color: transparent; 
         }
 
+        /* Animations */
         @keyframes shine { to { background-position: 200% center; } }
+        
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
             50% { transform: translateY(-15px); }
         }
 
+        /* Responsive Title for smaller screens */
         @media (max-width: 600px) {
             .flowing-title { font-size: 3rem; }
             #pngButton { width: 220px; }
@@ -75,18 +91,22 @@
     <svg style="position: absolute; width: 0; height: 0;">
         <filter id="water-ripple">
             <feTurbulence id="turbulence" type="fractalNoise" baseFrequency="0.01 0.02" numOctaves="2" seed="1">
-                <animate attributeName="baseFrequency" dur="8s" values="0.01 0.02; 0.02 0.04; 0.01 0.02" repeatCount="indefinite" />
+                <animate 
+                    attributeName="baseFrequency" 
+                    dur="8s" 
+                    values="0.01 0.02; 0.02 0.04; 0.01 0.02" 
+                    repeatCount="indefinite" />
             </feTurbulence>
             <feDisplacementMap in="SourceGraphic" scale="12" />
         </filter>
     </svg>
 
     <header>
-        <h1 class="flowing-title">BUTTON</h1>
+        <h1 class="flowing-title">BUZZER</h1>
     </header>
 
     <main>
-        <img id="pngButton" src="idle.png" alt="Buzz Button">
+        <img id="pngButton" src="idle.png" alt="Buzzer Button">
     </main>
 
     <script>
@@ -106,34 +126,38 @@
 
         function startBuzz(e) {
             if (e) e.preventDefault();
+            
+            // Safety check to prevent duplicate oscillators
             if (isPressed) return;
             isPressed = true;
 
             imgBtn.src = pressedImg;
 
-            // Initialize Audio Context on first interaction
+            // Init Context
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
 
-            // Create Oscillator (The Sound Generator)
+            // Create Audio Chain
             oscillator = audioCtx.createOscillator();
             gainNode = audioCtx.createGain();
 
-            oscillator.type = 'square'; // 'square' creates a buzzier, more mechanical sound
-            oscillator.frequency.setValueAtTime(100, audioCtx.currentTime); // Low frequency for a "deep" buzz
+            oscillator.type = 'square'; 
+            oscillator.frequency.setValueAtTime(400, audioCtx.currentTime); // 400Hz is much higher pitched
 
-            // Connect and start
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
             
-            // Fade in slightly to avoid a "pop"
+            // Clean fade in to prevent clicking sounds
             gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.2, audioCtx.currentTime + 0.05);
+            gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.02);
 
             oscillator.start();
 
-            // Vibrate
+            // Vibration
             if ("vibrate" in navigator) {
                 navigator.vibrate([1000, 50, 1000]);
             }
@@ -145,27 +169,37 @@
 
             imgBtn.src = idleImg;
 
-            // Stop the oscillator with a tiny fade out
-            if (gainNode) {
-                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.1);
+            if (gainNode && oscillator) {
+                // Instant silence to stop "ghost buzzing"
+                gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
+                gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
+                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.01);
+                
+                oscillator.stop(audioCtx.currentTime + 0.02);
+                
+                // Cleanup
+                const oldOsc = oscillator;
+                const oldGain = gainNode;
                 setTimeout(() => {
-                    if (oscillator) {
-                        oscillator.stop();
-                        oscillator.disconnect();
-                    }
-                }, 100);
+                    oldOsc.disconnect();
+                    oldGain.disconnect();
+                }, 50);
+
+                oscillator = null;
+                gainNode = null;
             }
 
-            // Stop vibration
             if ("vibrate" in navigator) {
                 navigator.vibrate(0);
             }
         }
 
-        // Mouse and Touch Listeners
+        // Global listeners for mouse release (even if mouse leaves the button)
         imgBtn.addEventListener('mousedown', startBuzz);
         window.addEventListener('mouseup', stopBuzz);
-        imgBtn.addEventListener('touchstart', startBuzz);
+
+        // Mobile touch listeners
+        imgBtn.addEventListener('touchstart', startBuzz, {passive: false});
         window.addEventListener('touchend', stopBuzz);
         window.addEventListener('touchcancel', stopBuzz);
     </script>
