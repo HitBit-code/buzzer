@@ -4,7 +4,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-    <title>Buzzer | High Pitch Edition</title>
+    
+    <title>Buzzer</title>
+
+    <link rel="icon" type="image/png" href="idle.png">
     
     <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@800&display=swap" rel="stylesheet">
     
@@ -37,7 +40,7 @@
             /* Apply the water ripple filter */
             filter: url(#water-ripple);
             
-            /* Deep red flowing gradient - guaranteed no pink */
+            /* Deep red flowing gradient */
             background: linear-gradient(
                 to right, 
                 #b30000 20%, 
@@ -127,13 +130,11 @@
         function startBuzz(e) {
             if (e) e.preventDefault();
             
-            // Safety check to prevent duplicate oscillators
             if (isPressed) return;
             isPressed = true;
 
             imgBtn.src = pressedImg;
 
-            // Init Context
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
@@ -141,23 +142,20 @@
                 audioCtx.resume();
             }
 
-            // Create Audio Chain
             oscillator = audioCtx.createOscillator();
             gainNode = audioCtx.createGain();
 
             oscillator.type = 'square'; 
-            oscillator.frequency.setValueAtTime(400, audioCtx.currentTime); // 400Hz is much higher pitched
+            oscillator.frequency.setValueAtTime(400, audioCtx.currentTime); 
 
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
             
-            // Clean fade in to prevent clicking sounds
             gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
             gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.02);
 
             oscillator.start();
 
-            // Vibration
             if ("vibrate" in navigator) {
                 navigator.vibrate([1000, 50, 1000]);
             }
@@ -170,14 +168,12 @@
             imgBtn.src = idleImg;
 
             if (gainNode && oscillator) {
-                // Instant silence to stop "ghost buzzing"
                 gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
                 gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
                 gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.01);
                 
                 oscillator.stop(audioCtx.currentTime + 0.02);
                 
-                // Cleanup
                 const oldOsc = oscillator;
                 const oldGain = gainNode;
                 setTimeout(() => {
@@ -194,11 +190,8 @@
             }
         }
 
-        // Global listeners for mouse release (even if mouse leaves the button)
         imgBtn.addEventListener('mousedown', startBuzz);
         window.addEventListener('mouseup', stopBuzz);
-
-        // Mobile touch listeners
         imgBtn.addEventListener('touchstart', startBuzz, {passive: false});
         window.addEventListener('touchend', stopBuzz);
         window.addEventListener('touchcancel', stopBuzz);
