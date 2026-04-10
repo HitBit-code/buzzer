@@ -4,87 +4,138 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-    
     <title>Buzzer</title>
-
     <link rel="icon" type="image/png" href="idle.png">
-    
-    <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;800&display=swap" rel="stylesheet">
     
     <style>
+        :root {
+            --primary-red: #ff0000;
+            --dark-red: #b30000;
+            --glass: rgba(255, 255, 255, 0.8);
+        }
+
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
-            background-color: white;
+            background-color: #ffffff;
             font-family: 'Overpass', sans-serif;
             height: 100vh;
             display: flex;
             flex-direction: column;
+            align-items: center;
         }
 
+        /* --- HEADER --- */
         header {
             width: 100%;
-            padding: 40px 0;
+            padding: 60px 0 20px;
             display: flex;
             justify-content: center;
+            z-index: 10;
         }
 
-        /* The Rippling Title */
         .flowing-title {
             font-size: 5rem;
             text-transform: uppercase;
-            letter-spacing: 8px;
+            letter-spacing: 12px;
             margin: 0;
-            
-            /* Apply the water ripple filter */
             filter: url(#water-ripple);
-            
-            /* Deep red flowing gradient */
-            background: linear-gradient(
-                to right, 
-                #b30000 20%, 
-                #ff0000 40%, 
-                #8b0000 60%, 
-                #b30000 80%
-            );
+            background: linear-gradient(to right, var(--dark-red) 20%, var(--primary-red) 40%, #000 60%, var(--dark-red) 80%);
             background-size: 200% auto;
             -webkit-background-clip: text;
             background-clip: text;
             -webkit-text-fill-color: transparent;
-            
-            animation: shine 4s linear infinite, float 6s ease-in-out infinite;
+            animation: shine 5s linear infinite, float 6s ease-in-out infinite;
         }
 
+        /* --- MAIN BUTTON AREA --- */
         main {
             flex-grow: 1;
             display: flex;
             justify-content: center;
             align-items: center;
+            width: 100%;
         }
 
-        /* PNG Button Styling */
         #pngButton {
-            width: 280px;
+            width: 320px;
             cursor: pointer;
             user-select: none;
             -webkit-user-drag: none;
             touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent; 
+            -webkit-tap-highlight-color: transparent;
+            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* Animations */
+        /* --- SLICK OVERLAY CONTROLS --- */
+        .controls-overlay {
+            position: absolute;
+            bottom: 40px;
+            display: flex;
+            gap: 20px;
+            padding: 20px 30px;
+            background: var(--glass);
+            backdrop-filter: blur(10px);
+            border-radius: 100px;
+            border: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            z-index: 20;
+            transition: transform 0.3s ease;
+        }
+
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        label {
+            font-size: 10px;
+            font-weight: 800;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type=range] {
+            width: 120px;
+            accent-color: var(--primary-red);
+            cursor: pointer;
+        }
+
+        select {
+            background: transparent;
+            border: none;
+            font-family: 'Overpass', sans-serif;
+            font-weight: 800;
+            font-size: 12px;
+            color: var(--dark-red);
+            cursor: pointer;
+            outline: none;
+            text-transform: uppercase;
+        }
+
+        /* --- ANIMATIONS --- */
         @keyframes shine { to { background-position: 200% center; } }
-        
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-15px); }
+            50% { transform: translateY(-20px); }
         }
 
-        /* Responsive Title for smaller screens */
         @media (max-width: 600px) {
-            .flowing-title { font-size: 3rem; }
-            #pngButton { width: 220px; }
+            .flowing-title { font-size: 2.5rem; letter-spacing: 6px; }
+            #pngButton { width: 240px; }
+            .controls-overlay { 
+                bottom: 20px;
+                padding: 15px 20px;
+                flex-wrap: wrap;
+                justify-content: center;
+                border-radius: 30px;
+                width: 90%;
+            }
         }
     </style>
 </head>
@@ -94,11 +145,7 @@
     <svg style="position: absolute; width: 0; height: 0;">
         <filter id="water-ripple">
             <feTurbulence id="turbulence" type="fractalNoise" baseFrequency="0.01 0.02" numOctaves="2" seed="1">
-                <animate 
-                    attributeName="baseFrequency" 
-                    dur="8s" 
-                    values="0.01 0.02; 0.02 0.04; 0.01 0.02" 
-                    repeatCount="indefinite" />
+                <animate attributeName="baseFrequency" dur="10s" values="0.01 0.02; 0.02 0.04; 0.01 0.02" repeatCount="indefinite" />
             </feTurbulence>
             <feDisplacementMap in="SourceGraphic" scale="12" />
         </filter>
@@ -112,24 +159,55 @@
         <img id="pngButton" src="idle.png" alt="Buzzer Button">
     </main>
 
+    <div class="controls-overlay">
+        <div class="control-item">
+            <label>Wave</label>
+            <select id="waveType">
+                <option value="square">Buzz</option>
+                <option value="sine">Hum</option>
+                <option value="sawtooth">Sharp</option>
+                <option value="triangle">Soft</option>
+            </select>
+        </div>
+        
+        <div class="control-item">
+            <label>Pitch</label>
+            <input type="range" id="pitch" min="60" max="1000" value="400">
+        </div>
+
+        <div class="control-item">
+            <label>Volume</label>
+            <input type="range" id="volume" min="0" max="1" step="0.05" value="0.2">
+        </div>
+    </div>
+
     <script>
         const imgBtn = document.getElementById('pngButton');
+        const pitchSlider = document.getElementById('pitch');
+        const volSlider = document.getElementById('volume');
+        const waveSelect = document.getElementById('waveType');
+
         const idleImg = "idle.png";
         const pressedImg = "pressed.png";
-
-        // Preload image
         const preloadImg = new Image();
         preloadImg.src = pressedImg;
 
-        // --- WEB AUDIO API SETUP ---
         let audioCtx = null;
         let oscillator = null;
         let gainNode = null;
         let isPressed = false;
 
+        // Real-time adjustments
+        pitchSlider.addEventListener('input', () => {
+            if (oscillator) oscillator.frequency.setTargetAtTime(pitchSlider.value, audioCtx.currentTime, 0.03);
+        });
+
+        volSlider.addEventListener('input', () => {
+            if (gainNode) gainNode.gain.setTargetAtTime(volSlider.value, audioCtx.currentTime, 0.03);
+        });
+
         function startBuzz(e) {
             if (e) e.preventDefault();
-            
             if (isPressed) return;
             isPressed = true;
 
@@ -138,21 +216,19 @@
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             }
-            if (audioCtx.state === 'suspended') {
-                audioCtx.resume();
-            }
+            if (audioCtx.state === 'suspended') audioCtx.resume();
 
             oscillator = audioCtx.createOscillator();
             gainNode = audioCtx.createGain();
 
-            oscillator.type = 'square'; 
-            oscillator.frequency.setValueAtTime(400, audioCtx.currentTime); 
+            oscillator.type = waveSelect.value; 
+            oscillator.frequency.setValueAtTime(pitchSlider.value, audioCtx.currentTime); 
 
             oscillator.connect(gainNode);
             gainNode.connect(audioCtx.destination);
             
             gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(0.15, audioCtx.currentTime + 0.02);
+            gainNode.gain.linearRampToValueAtTime(volSlider.value, audioCtx.currentTime + 0.02);
 
             oscillator.start();
 
@@ -185,9 +261,7 @@
                 gainNode = null;
             }
 
-            if ("vibrate" in navigator) {
-                navigator.vibrate(0);
-            }
+            if ("vibrate" in navigator) navigator.vibrate(0);
         }
 
         imgBtn.addEventListener('mousedown', startBuzz);
@@ -196,6 +270,5 @@
         window.addEventListener('touchend', stopBuzz);
         window.addEventListener('touchcancel', stopBuzz);
     </script>
-
 </body>
 </html>
