@@ -12,7 +12,7 @@
         :root {
             --primary-red: #ff0000;
             --dark-red: #b30000;
-            --glass: rgba(255, 255, 255, 0.8);
+            --glass: rgba(255, 255, 255, 0.85);
         }
 
         body {
@@ -27,10 +27,9 @@
             align-items: center;
         }
 
-        /* --- HEADER --- */
         header {
             width: 100%;
-            padding: 60px 0 20px;
+            padding: 50px 0 10px;
             display: flex;
             justify-content: center;
             z-index: 10;
@@ -50,7 +49,6 @@
             animation: shine 5s linear infinite, float 6s ease-in-out infinite;
         }
 
-        /* --- MAIN BUTTON AREA --- */
         main {
             flex-grow: 1;
             display: flex;
@@ -60,48 +58,47 @@
         }
 
         #pngButton {
-            width: 320px;
+            width: 300px;
             cursor: pointer;
             user-select: none;
             -webkit-user-drag: none;
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
-            transition: transform 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* --- SLICK OVERLAY CONTROLS --- */
         .controls-overlay {
             position: absolute;
-            bottom: 40px;
+            bottom: 25px;
             display: flex;
             gap: 20px;
-            padding: 20px 30px;
+            padding: 15px 30px;
             background: var(--glass);
-            backdrop-filter: blur(10px);
-            border-radius: 100px;
-            border: 1px solid rgba(0,0,0,0.05);
-            box-shadow: 0 10px 40px rgba(0,0,0,0.08);
+            backdrop-filter: blur(15px);
+            border-radius: 50px;
+            border: 1px solid rgba(0,0,0,0.08);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
             z-index: 20;
-            transition: transform 0.3s ease;
+            max-width: 95vw;
         }
 
         .control-item {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 5px;
+            gap: 6px;
+            min-width: 70px;
         }
 
         label {
-            font-size: 10px;
+            font-size: 8px;
             font-weight: 800;
-            color: #888;
+            color: #999;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 1.2px;
         }
 
         input[type=range] {
-            width: 120px;
+            width: 80px;
             accent-color: var(--primary-red);
             cursor: pointer;
         }
@@ -111,31 +108,23 @@
             border: none;
             font-family: 'Overpass', sans-serif;
             font-weight: 800;
-            font-size: 12px;
+            font-size: 10px;
             color: var(--dark-red);
             cursor: pointer;
             outline: none;
             text-transform: uppercase;
         }
 
-        /* --- ANIMATIONS --- */
         @keyframes shine { to { background-position: 200% center; } }
         @keyframes float {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-20px); }
+            50% { transform: translateY(-15px); }
         }
 
-        @media (max-width: 600px) {
-            .flowing-title { font-size: 2.5rem; letter-spacing: 6px; }
-            #pngButton { width: 240px; }
-            .controls-overlay { 
-                bottom: 20px;
-                padding: 15px 20px;
-                flex-wrap: wrap;
-                justify-content: center;
-                border-radius: 30px;
-                width: 90%;
-            }
+        @media (max-width: 900px) {
+            .flowing-title { font-size: 2.2rem; letter-spacing: 5px; }
+            #pngButton { width: 200px; }
+            .controls-overlay { border-radius: 25px; gap: 8px; padding: 12px; flex-wrap: wrap; justify-content: center; width: 90%; }
         }
     </style>
 </head>
@@ -163,18 +152,28 @@
         <div class="control-item">
             <label>Wave</label>
             <select id="waveType">
-                <option value="square">Buzz</option>
+                <option value="square" selected>Buzz</option>
                 <option value="sine">Hum</option>
                 <option value="sawtooth">Sharp</option>
                 <option value="triangle">Soft</option>
             </select>
         </div>
-        
         <div class="control-item">
             <label>Pitch</label>
             <input type="range" id="pitch" min="60" max="1000" value="400">
         </div>
-
+        <div class="control-item">
+            <label>Bass</label>
+            <input type="range" id="bass" min="100" max="10000" value="10000">
+        </div>
+        <div class="control-item">
+            <label>Chorus</label>
+            <input type="range" id="chorus" min="0" max="50" value="0">
+        </div>
+        <div class="control-item">
+            <label>Reverb</label>
+            <input type="range" id="reverb" min="0" max="1" step="0.1" value="0">
+        </div>
         <div class="control-item">
             <label>Volume</label>
             <input type="range" id="volume" min="0" max="1" step="0.05" value="0.2">
@@ -183,92 +182,116 @@
 
     <script>
         const imgBtn = document.getElementById('pngButton');
-        const pitchSlider = document.getElementById('pitch');
-        const volSlider = document.getElementById('volume');
-        const waveSelect = document.getElementById('waveType');
+        const pitchS = document.getElementById('pitch');
+        const bassS = document.getElementById('bass');
+        const chorS = document.getElementById('chorus');
+        const revS = document.getElementById('reverb');
+        const volS = document.getElementById('volume');
+        const waveS = document.getElementById('waveType');
 
-        const idleImg = "idle.png";
-        const pressedImg = "pressed.png";
-        const preloadImg = new Image();
-        preloadImg.src = pressedImg;
-
-        let audioCtx = null;
-        let oscillator = null;
-        let gainNode = null;
+        let audioCtx, masterGain, dryGain, wetGain, reverbNode, filter;
+        let osc1, osc2;
         let isPressed = false;
 
-        // Real-time adjustments
-        pitchSlider.addEventListener('input', () => {
-            if (oscillator) oscillator.frequency.setTargetAtTime(pitchSlider.value, audioCtx.currentTime, 0.03);
-        });
+        function initAudio() {
+            if (audioCtx) return;
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            
+            masterGain = audioCtx.createGain();
+            dryGain = audioCtx.createGain();
+            wetGain = audioCtx.createGain();
+            reverbNode = audioCtx.createConvolver();
+            filter = audioCtx.createBiquadFilter();
 
-        volSlider.addEventListener('input', () => {
-            if (gainNode) gainNode.gain.setTargetAtTime(volSlider.value, audioCtx.currentTime, 0.03);
-        });
+            const len = audioCtx.sampleRate * 1.5;
+            const buf = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
+            for (let i = 0; i < 2; i++) {
+                const chan = buf.getChannelData(i);
+                for (let j = 0; j < len; j++) chan[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / len, 2);
+            }
+            reverbNode.buffer = buf;
+
+            filter.connect(dryGain);
+            filter.connect(reverbNode);
+            reverbNode.connect(wetGain);
+            dryGain.connect(masterGain);
+            wetGain.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
+
+            masterGain.gain.value = 0;
+            filter.type = "lowpass";
+        }
 
         function startBuzz(e) {
             if (e) e.preventDefault();
+            initAudio();
+            
+            // Re-resume context just in case browser suspended it
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
             if (isPressed) return;
             isPressed = true;
+            imgBtn.src = "pressed.png";
 
-            imgBtn.src = pressedImg;
+            osc1 = audioCtx.createOscillator();
+            osc2 = audioCtx.createOscillator();
 
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
-            if (audioCtx.state === 'suspended') audioCtx.resume();
+            osc1.type = osc2.type = waveS.value;
+            osc1.frequency.value = parseFloat(pitchS.value);
+            osc2.frequency.value = parseFloat(pitchS.value) + parseFloat(chorS.value);
 
-            oscillator = audioCtx.createOscillator();
-            gainNode = audioCtx.createGain();
+            filter.frequency.value = parseFloat(bassS.value);
+            dryGain.gain.value = 1.0;
+            wetGain.gain.value = parseFloat(revS.value);
 
-            oscillator.type = waveSelect.value; 
-            oscillator.frequency.setValueAtTime(pitchSlider.value, audioCtx.currentTime); 
+            osc1.connect(filter);
+            osc2.connect(filter);
 
-            oscillator.connect(gainNode);
-            gainNode.connect(audioCtx.destination);
-            
-            gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-            gainNode.gain.linearRampToValueAtTime(volSlider.value, audioCtx.currentTime + 0.02);
+            osc1.start(0);
+            osc2.start(0);
 
-            oscillator.start();
+            masterGain.gain.setTargetAtTime(parseFloat(volS.value), audioCtx.currentTime, 0.02);
 
-            if ("vibrate" in navigator) {
-                navigator.vibrate([1000, 50, 1000]);
-            }
+            if ("vibrate" in navigator) navigator.vibrate([1000, 50, 1000]);
         }
 
         function stopBuzz() {
             if (!isPressed) return;
             isPressed = false;
+            imgBtn.src = "idle.png";
 
-            imgBtn.src = idleImg;
-
-            if (gainNode && oscillator) {
-                gainNode.gain.cancelScheduledValues(audioCtx.currentTime);
-                gainNode.gain.setValueAtTime(gainNode.gain.value, audioCtx.currentTime);
-                gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.01);
+            if (masterGain) {
+                masterGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.05);
                 
-                oscillator.stop(audioCtx.currentTime + 0.02);
+                // Keep references to stop them properly after fade
+                const activeOsc1 = osc1;
+                const activeOsc2 = osc2;
                 
-                const oldOsc = oscillator;
-                const oldGain = gainNode;
                 setTimeout(() => {
-                    oldOsc.disconnect();
-                    oldGain.disconnect();
-                }, 50);
-
-                oscillator = null;
-                gainNode = null;
+                    if (activeOsc1) { activeOsc1.stop(); activeOsc1.disconnect(); }
+                    if (activeOsc2) { activeOsc2.stop(); activeOsc2.disconnect(); }
+                }, 100);
             }
-
             if ("vibrate" in navigator) navigator.vibrate(0);
         }
+
+        // Live Slider updates
+        pitchS.oninput = () => {
+            const freq = parseFloat(pitchS.value);
+            if(osc1) osc1.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.03);
+            if(osc2) osc2.frequency.setTargetAtTime(freq + parseFloat(chorS.value), audioCtx.currentTime, 0.03);
+        };
+        chorS.oninput = () => {
+            if(osc2) osc2.frequency.setTargetAtTime(parseFloat(pitchS.value) + parseFloat(chorS.value), audioCtx.currentTime, 0.03);
+        };
+        bassS.oninput = () => { if(filter) filter.frequency.setTargetAtTime(parseFloat(bassS.value), audioCtx.currentTime, 0.03); };
+        revS.oninput = () => { if(wetGain) wetGain.gain.setTargetAtTime(parseFloat(revS.value), audioCtx.currentTime, 0.03); };
+        volS.oninput = () => { if(masterGain && isPressed) masterGain.gain.setTargetAtTime(parseFloat(volS.value), audioCtx.currentTime, 0.03); };
 
         imgBtn.addEventListener('mousedown', startBuzz);
         window.addEventListener('mouseup', stopBuzz);
         imgBtn.addEventListener('touchstart', startBuzz, {passive: false});
         window.addEventListener('touchend', stopBuzz);
-        window.addEventListener('touchcancel', stopBuzz);
     </script>
 </body>
 </html>
