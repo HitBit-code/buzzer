@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
-    <title>Buzzer</title>
+    <title>Buzzer Pro</title>
     <link rel="icon" type="image/png" href="idle.png">
     <link href="https://fonts.googleapis.com/css2?family=Overpass:wght@400;800&display=swap" rel="stylesheet">
     
@@ -156,6 +156,7 @@
             <label>Preset</label>
             <select id="preset">
                 <option value="custom">Custom</option>
+                <option value="bleep">Censor Bleep</option>
                 <option value="amber">Amber Alert</option>
                 <option value="train">Train Horn</option>
                 <option value="ufo">UFO Beam</option>
@@ -192,6 +193,7 @@
         let isPressed = false;
 
         const presets = {
+            bleep: { wave: 'sine', pitch: 1000, bass: 15000, chorus: 0, reverb: 0 },
             amber: { wave: 'square', pitch: 853, bass: 15000, chorus: 107, reverb: 0 },
             train: { wave: 'sawtooth', pitch: 311, bass: 12000, chorus: 40, reverb: 0.3 },
             ufo: { wave: 'sine', pitch: 150, bass: 5000, chorus: 250, reverb: 0.8 }
@@ -262,15 +264,19 @@
             dryGain.gain.value = 1.0;
 
             if (presetS.value === 'train') {
-                // K5LA Train Horn Chords (D#, F#, G#, B, D#)
                 [1, 1.25, 1.5, 1.8, 2.0].forEach(mult => createOsc(baseFreq * mult, type));
+            } else if (presetS.value === 'bleep') {
+                // Pure 1000Hz Sine wave for censor
+                createOsc(baseFreq, 'sine');
             } else {
                 createOsc(baseFreq, type);
-                createOsc(baseFreq + chorVal, type);
+                if(chorVal > 0) createOsc(baseFreq + chorVal, type);
             }
 
-            masterGain.gain.setTargetAtTime(parseFloat(volS.value), audioCtx.currentTime, 0.02);
-            if ("vibrate" in navigator) navigator.vibrate([1000, 50, 1000]);
+            // Sharper attack for the bleep
+            const attack = presetS.value === 'bleep' ? 0.005 : 0.02;
+            masterGain.gain.setTargetAtTime(parseFloat(volS.value), audioCtx.currentTime, attack);
+            if ("vibrate" in navigator) navigator.vibrate([1000]);
         }
 
         function stopBuzz() {
@@ -282,7 +288,7 @@
                 const toStop = [...activeOscillators];
                 activeOscillators = [];
                 setTimeout(() => {
-                    toStop.forEach(o => { o.stop(); o.disconnect(); });
+                    toStop.forEach(o => { try { o.stop(); o.disconnect(); } catch(e) {} });
                 }, 100);
             }
             if ("vibrate" in navigator) navigator.vibrate(0);
@@ -294,9 +300,12 @@
             filter.frequency.setTargetAtTime(parseFloat(bassS.value), audioCtx.currentTime, 0.03);
             wetGain.gain.setTargetAtTime(parseFloat(revS.value), audioCtx.currentTime, 0.03);
             masterGain.gain.setTargetAtTime(parseFloat(volS.value), audioCtx.currentTime, 0.03);
-            if (presetS.value !== 'train' && activeOscillators.length >= 2) {
+            
+            if (presetS.value !== 'train' && presetS.value !== 'bleep' && activeOscillators.length >= 2) {
                 activeOscillators[0].frequency.setTargetAtTime(f, audioCtx.currentTime, 0.03);
                 activeOscillators[1].frequency.setTargetAtTime(f + parseFloat(chorS.value), audioCtx.currentTime, 0.03);
+            } else if (activeOscillators.length >= 1) {
+                activeOscillators[0].frequency.setTargetAtTime(f, audioCtx.currentTime, 0.03);
             }
         });
 
